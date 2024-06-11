@@ -1,3 +1,2 @@
 # Google-Earth-Engine---Classification
-This code was used for writing graduate thesis themed 'Classification of land and agricultural land using Google Earth Engine'. Code used Sentinel data imagery and six classification algorithms: Random Forest, CART, 
-Minimum Distance, Naive Bayes, SVM, kNN. Study area was specific region on Croatia, Osijek-Baranja County. 
+This code was used for a research in graduate thesis themed 'Classification of land and agricultural land using Google Earth Engine'. Code used Sentinel data imagery and six classification algorithms: Random Forest, CART, Minimum Distance, Naive Bayes, SVM, kNN. An accuracy assessment of the  confusion matrix was performed for each of the classification methods. The metrics that we’re for performance evaluation are Overall Accuracy, Producer Accuracy, Consumer Accuracy  and Kappa Coefficient. Study area was specific region on Croatia, Osijek-Baranja County. 
