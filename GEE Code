@@ -1,0 +1,215 @@
+//Adding shape & ROI
+
+var shp = ee.FeatureCollection(polygon)
+Map.addLayer(shp, {}, 'My Polygon')
+
+//Load Sentinel data
+
+var image = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+.filterDate('2022-01-01', '2022-12-31')
+.filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 5))
+.filterBounds(shp)
+.median();
+
+var visParamsTrue = {bands: ['B4', 'B3', 'B2'], min: 0, max: 2500, gamma: 1.1};
+Map.addLayer(image.clip(shp),visParamsTrue, 'Sentinel2020');
+Map.centerObject(shp, 8);
+
+//Create training data
+
+var training = water.merge(barren).merge(cropland).merge(forest).merge(urban);
+print(training);
+
+var label = 'Class';
+var bands = [ 'B2', 'B3', 'B4', 'B8'];
+var input = image.select(bands);
+
+//Overlay the points on the imagery
+
+var trainImage = input.sampleRegions({
+  collection: training,
+  properties: [label],
+  scale: 30
+});
+
+var trainingData = trainImage.randomColumn();
+var trainSet = trainingData.filter(ee.Filter.lessThan('random', 0.8));
+var testSet = trainingData.filter(ee.Filter.greaterThanOrEquals('random', 0.8));
+
+//Classification model
+
+var classifier = ee.Classifier.smileCart().train(trainSet, label, bands);
+
+//Classify image 
+
+var classified = input.classify(classifier);
+
+//Define color parameters
+
+var landcoverPalette = [
+  '253494', //water (0)
+  '969696', //barren (1)
+  'FF8000', //cropland (2)
+  '006837', //forest (3)
+  'EC340C', //urban (4)
+  ];
+  
+Map.addLayer(classified.clip(shp), {palette: landcoverPalette, min: 0, max:4}, 'classification CART');
+
+//Accuracy assesment
+
+var confusionMatrix = ee.ConfusionMatrix(testSet.classify(classifier)
+.errorMatrix({
+  actual: 'Class',
+  predicted: 'classification'
+}));
+
+print('Confusion Matrix:', confusionMatrix);
+print('Overall accuracy', confusionMatrix.accuracy());
+
+// Classification model using Random Forest
+
+var classifierRF = ee.Classifier.smileRandomForest({
+  numberOfTrees: 100, // You can adjust the number of trees as needed
+  seed: 0
+}).train(trainSet, label, bands);
+
+// // Classify image Random Forest
+
+var classifiedRF = input.classify(classifierRF);
+
+Map.addLayer(classifiedRF.clip(shp), {palette: landcoverPalette, min: 0, max: 4}, 'classification Random Forest');
+
+// Get information about the trained classifier.
+
+print('Results of trained classifier', classifierRF.explain());
+
+var trainAccuracy = classifierRF.confusionMatrix();
+
+print('Training error matrixRandom Forest', trainAccuracy);
+print('Training overall accuracyRandom Forest', trainAccuracy.accuracy());
+print("Consumer's accuracy Random Forest", trainAccuracy.consumersAccuracy());
+print("Producer's accuracy Random Forest", trainAccuracy.producersAccuracy());
+print('Kappa statistic for Random Forest', trainAccuracy.kappa());
+
+//Classification Naive Bays
+var classifierNB =  ee.Classifier.smileNaiveBayes().train(trainSet, label, bands);
+
+// // Classify image 
+
+var classifiedNB = input.classify(classifierNB);
+
+Map.addLayer(classifiedNB.clip(shp), {palette: landcoverPalette, min: 0, max: 4}, 'classification Naive Bayes');
+
+// Get information about the trained classifier.
+
+print('Results of trained classifier', classifierNB.explain());
+
+// Get a confusion matrix and overall accuracy for the training sample.
+
+var trainAccuracy1 = classifierNB.confusionMatrix();
+
+print('Training error matrix for Naive Bayes', trainAccuracy1);
+print('Training overall accuracy for Naive Bayes', trainAccuracy1.accuracy());
+print("Consumer's accuracy for Naive Bayes ", trainAccuracy1.consumersAccuracy());
+print("Producer's accuracy for Naive Bayes", trainAccuracy1.producersAccuracy());
+print('Kappa statistic for Naive Bayes', trainAccuracy1.kappa());
+
+
+// Classification LIBSVM
+
+var classifierLIBSVM = ee.Classifier.libsvm().train(trainSet, label, bands);
+
+// Classify image 
+
+var classfiedLIBSVM = input.classify(classifierLIBSVM);
+
+Map.addLayer(classfiedLIBSVM.clip(shp), {palette: landcoverPalette, min: 0, max: 4}, 'Classification LIBSVM');
+
+// Get information about the trained classifier.
+
+print('Results of trained classifier', classifierLIBSVM.explain());
+
+// Get a confusion matrix and overall accuracy for the training sample.
+
+var trainAccuracy2= classifierLIBSVM.confusionMatrix();
+
+print('Training error matrix for LIBSVM', trainAccuracy2);
+print('Training overall accuracy for LIBSVM', trainAccuracy2.accuracy());
+print("Consumer's accuracy for LIBSVM ", trainAccuracy2.consumersAccuracy());
+print("Producer's accuracy for LIBSVM", trainAccuracy2.producersAccuracy());
+print('Kappa statistic for LIBSVM', trainAccuracy2.kappa());
+
+//Classification kNN
+
+var classifiedkNN = ee.Classifier.smileKNN(5).train(trainSet, label, bands);
+
+// Classify image 
+
+var classfiedkNN = input.classify(classifiedkNN);
+
+Map.addLayer(classfiedkNN.clip(shp), {palette: landcoverPalette, min: 0, max: 4}, 'Classification kNN');
+
+// Get information about the trained classifier.
+
+print('Results of trained classifier', classifiedkNN.explain());
+
+// Get a confusion matrix and overall accuracy for the training sample.
+
+var trainAccuracy3= classifiedkNN.confusionMatrix();
+
+print('Training error matrix for kNN', trainAccuracy3);
+print('Training overall accuracy for kNN', trainAccuracy3.accuracy());
+print("Consumer's accuracy for kNN", trainAccuracy3.consumersAccuracy());
+print("Producer's accuracyn for kNN", trainAccuracy3.producersAccuracy());
+print('Kappa statistic for kNN', trainAccuracy3.kappa());
+
+//Classification Minimum Distance 
+
+var classifiedMD = ee.Classifier.minimumDistance('mahalanobis').train(trainSet, label, bands);
+
+// Classify image 
+
+var classfiedMD = input.classify(classifiedMD);
+
+Map.addLayer(classfiedMD.clip(shp), {palette: landcoverPalette, min: 0, max: 4}, 'Classification Minimum distance');
+
+// Get information about the trained classifier.
+
+print('Results of trained classifier', classifiedMD.explain());
+
+// Get a confusion matrix and overall accuracy for the training sample.
+
+var trainAccuracy4= classifiedMD.confusionMatrix();
+
+print('Training error matrix for Minimum Distance', trainAccuracy4);
+print('Training overall accuracy for Minimum Distance', trainAccuracy4.accuracy());
+print("Consumer's accuracy for Minimum Distance", trainAccuracy4.consumersAccuracy());
+print("Producer's accuracyn for Minimum Distance", trainAccuracy4.producersAccuracy());
+print('Kappa statistic for Minimum Distance', trainAccuracy4.kappa());
+
+//Export classified map to Google drive
+
+Export.image.toDrive({
+  image: classified,
+  description: "Sentinel_2_CART",
+  scale: 10,
+  region: shp,
+  maxPixels: 1e13,
+});
+
+// Export training data
+
+Export.table.toAsset({
+  collection: training,
+  description: 'Sentinel_2022',
+  assetId: 'Sentinel_2022'
+});
+
+Export.table.toDrive({
+  collection: training,
+  description: 'Sentinel_2022',
+  fileFormat: 'SHP'
+});
+
+
